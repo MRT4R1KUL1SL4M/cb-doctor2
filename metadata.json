@@ -1,0 +1,8 @@
+{
+  "name": "CB Doctor",
+  "description": "An interactive, premium diagnostic pipeline for kidney CT imaging. Features automated multi-class classification, disease localization, lesion segmentation, Grad-CAM heatmap visualization, and downloadable clinical reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
