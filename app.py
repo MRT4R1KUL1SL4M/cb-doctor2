@@ -59,6 +59,10 @@ def get_yolo_model():
                 try:
                     logger.info("Loading YOLOv8 model into memory...")
                     _model_instance = YOLO(MODEL_PATH)
+                    try:
+                        _model_instance.fuse()
+                    except Exception:
+                        pass
                     logger.info("YOLOv8 model loaded successfully.")
                 except Exception as e:
                     logger.error(f"Failed to load YOLO model: {e}")
@@ -213,10 +217,21 @@ def diagnose():
                 if img is None:
                     raise ValueError("Failed to decode base64 image into valid OpenCV format.")
 
+                # Resize image to reduce RAM usage on Render
+                img = cv2.resize(img, (640, 640))
+
                 # Optimize memory & run inference
                 with torch.inference_mode():
-                    # Running prediction directly on numpy array
-                    results = model.predict(source=img, verbose=False)
+                    results = model.predict(
+                        source=img,
+                        imgsz=640,
+                        conf=0.25,
+                        iou=0.45,
+                        max_det=1,
+                        device="cpu",
+                        augment=False,
+                        verbose=False
+                    )
                 
                 result = results[0]
                 classes = result.names
@@ -263,6 +278,11 @@ def diagnose():
                     del img
                     del results
                     gc.collect()
+                    try:
+                        if hasattr(torch, "cuda") and torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                    except Exception:
+                        pass
 
                     return jsonify({
                         "success": True,
