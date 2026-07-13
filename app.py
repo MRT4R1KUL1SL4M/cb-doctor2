@@ -22,7 +22,7 @@ try:
 except ImportError:
     HAS_ML_LIBRARIES = False
 
-# Path to local YOLO v8 model weights
+# Path to local YOLO model weights
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model", "best.pt")
 
 # Standard clinical presets matching our frontend for reliable fallback operations
@@ -143,6 +143,12 @@ def load_yolo_model():
         print(f"[Model Loader] Failed to load YOLO model: {e}")
         return None
 
+# Load the model once during application startup to avoid
+# reloading it on every request (prevents timeouts/OOM on Render).
+YOLO_MODEL = None
+if HAS_ML_LIBRARIES:
+    YOLO_MODEL = load_yolo_model()
+
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({
@@ -170,8 +176,8 @@ def diagnose():
             })
 
         # 2. Try loading actual YOLO weights
-        model = load_yolo_model()
-        if model is not None and HAS_ML_LIBRARIES:
+        model = YOLO_MODEL
+        if model is not None:
             try:
                 # Decode image base64
                 header, encoded = image_data.split(",", 1) if "," in image_data else ("", image_data)
@@ -183,7 +189,8 @@ def diagnose():
                     f.write(img_bytes)
 
                 # Run inference
-                results = model(temp_filename)
+                with torch.inference_mode():
+                    results = model.predict(temp_filename, verbose=False)
                 result = results[0]
                 
                 # Clean up temp file
